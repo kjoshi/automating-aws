@@ -27,7 +27,12 @@ class BucketManager:
         )
         self.manifest = {}
 
+    def get_bucket(self, bucket_name):
+        """Get a Bucket by name."""
+        return self.s3.Bucket(bucket_name)
+
     def bucket_region_name(self, bucket):
+        """Get a bucket region name."""
         bucket_location = self.s3.meta.client.get_bucket_location(Bucket=bucket.name)
         return bucket_location["LocationConstraint"] or "us-east-1"
 
