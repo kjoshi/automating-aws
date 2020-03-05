@@ -15,26 +15,32 @@ Webotron automates the process of deploying static websites to AWS.
 import boto3
 import click
 
-from bucket import BucketManager
-from domain import DomainManager
-import util
+from webotron.bucket import BucketManager
+from webotron.domain import DomainManager
+from webotron.certificate import CertificateManager
+from webotron.cdn import DistributionManager
+from webotron import util
 
 session = None
 bucket_manager = None
 domain_manager = None
+dist_manager = None
+cert_manager = None
 
 
 @click.group()
 @click.option("--profile", default=None, help="Use a given AWS profile")
 def cli(profile):
     """Webotron deploys websites to AWS."""
-    global session, bucket_manager, domain_manager
+    global session, bucket_manager, domain_manager, cert_manager, dist_manager
     session_cfg = {}
     if profile:
         session_cfg["profile_name"] = profile
     session = boto3.Session(**session_cfg)
     bucket_manager = BucketManager(session)
     domain_manager = DomainManager(session)
+    cert_manager = CertificateManager(session)
+    dist_manager = DistributionManager(session)
 
 
 @cli.command("list-buckets")
@@ -78,8 +84,41 @@ def setup_domain(domain):
     zone = domain_manager.find_hosted_zone(domain)
     endpoint = util.get_endpoint(bucket_manager.bucket_region_name(bucket))
     a_record = domain_manager.create_s3_domain_record(zone, domain, endpoint)
-    print(f"Domain configure: http://{domain} :")
+    print(f"Domain configured: http://{domain} :")
 
+
+@cli.command('find-cert')
+@click.argument('domain')
+def find_cert(domain):
+    print(cert_manager.find_matching_cert(domain))
+
+
+@cli.command('setup-cdn')
+@click.argument('domain')
+@click.argument('bucket')
+def setup_cdn(domain, bucket):
+    dist = dist_manager.find_matching_dist(domain)
+    if not dist:
+        cert = cert_manager.find_matching_cert(domain) 
+        if not cert:
+            print("Error: NO matching cert found")
+            return
+        
+        dist = dist_manager.create_dist(domain, cert)
+        print("Waiting for distribution deployment")
+        dist_manager.await_deploy(dist)
+
+        zone = domain_manager.find_hosted_zone(domain)
+
+        domain_manager.create_cf_domain_record(zone, domain, dist["DomainName"])
+        print(f"Domain configured: https://{domain}")
+
+        return 
+
+@cli.command('find-dist')
+@click.argument('domain')
+def find_dist(domain):
+    print(dist_manager.find_matching_dist(domain))
 
 if __name__ == "__main__":
     cli()

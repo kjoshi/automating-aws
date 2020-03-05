@@ -1,0 +1,9 @@
+boto3
+click
+pytest 
+pycodestyle 
+pydocstyle 
+pylint 
+rope 
+setuptools 
+ipython

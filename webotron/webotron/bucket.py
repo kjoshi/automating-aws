@@ -9,7 +9,7 @@ from functools import reduce
 import boto3
 from botocore.exceptions import ClientError
 
-import util
+from webotron import util
 
 
 class BucketManager:
@@ -91,7 +91,7 @@ class BucketManager:
         """Configure a website for use as a website."""
         bucket.Website().put(
             WebsiteConfiguration={
-                "ErrorDocument": {"Key": "error.html"},
+                "ErrorDocument": {"Key": "index.html"},
                 "IndexDocument": {"Suffix": "index.html"},
             }
         )
